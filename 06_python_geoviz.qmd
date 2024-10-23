@@ -1,0 +1,153 @@
+---
+title: "Geospatial data in Python"
+format: html
+editor: visual
+execute: 
+  warning: false
+  message: false
+---
+
+# Setup
+
+```{r}
+library(reticulate)
+
+```
+
+```{python}
+import pandas as pd
+import geopandas as gpd
+import matplotlib.pyplot as plt
+from matplot
+import numpy as np
+import pygris
+from pygris.data import get_censuslib import colormaps
+from pygris import states
+from census import Census
+from pygris import get_census
+import folium
+import branca.colormap as cm
+from branca.colormap import linear
+
+```
+
+# Activity 1: Choropleth map with one poll's data
+
+-   Load the `1976-2020-president.csv` file
+-   Filter to:
+    -   `year` = 2020
+    -   `party_simplified` is REPUBLICAN
+-   Create a new column `vote_share` defined as `candidatevotes`/`totalvotes`
+-   Use `pygris` to download state polygons (set the year to be 2020)
+-   Use `folium` to create a choropleth map with the Republican vote share for 2020 for each state.
+    -   Hint: I would recommend merging the data on `STATEFP` prior to plotting. For that, you may need to add leading zeros to the two digit state fips codes. See here for a useful reference: https://pandas.pydata.org/docs/reference/api/pandas.Series.str.pad.html
+
+```{python}
+
+# Reading in filtering
+cv = pd.read_csv("1976-2020-president.csv")
+cv = pd.DataFrame(cv)
+
+# Filtering 
+cv2 = cv.loc[(cv['year']==2020) & (cv['party_simplified']=='REPUBLICAN')]
+
+# New column: Voteshare
+cv2['vote_share'] = (cv2['candidatevotes']/cv2['totalvotes'])
+
+# Reading in GEOJson
+state_boundaries = gpd.read_file("state_boundaries.geojson")
+
+```
+
+```{python}
+# Getting 2020 polygons w. Pygris
+state_polygons = states(year=2020)
+
+```
+
+```{python}
+
+
+```
+
+Solution
+
+m
+
+```{python}
+## data preparation 
+vote_returns = pd.read_csv("1976-2020-president.csv") 
+vote_returns['STATEFP'] = vote_returns.state_fips.astype(str).str.pad(width = 2, side = 'left', fillchar = "0") 
+vote_focus = vote_returns[(vote_returns.year == 2020) & (vote_returns.party_simplified.isin(["REPUBLICAN"]))].copy() 
+vote_focus['vote_share'] = vote_focus.candidatevotes/vote_focus.totalvotes
+
+#get state boundaries for mapping
+
+state_boundaries = states(year = 2020) 
+state_boundaries_folium = state_boundaries.to_crs(4326)
+
+#merge
+
+state_w_votefocus = state_boundaries_folium.merge(vote_focus, on = "STATEFP")
+
+m = folium.Map(location=[40, -95], zoom_start=3)
+
+## create the plot
+folium.Choropleth(geo_data = state_w_votefocus,
+    name = "Republican vote share",
+    data = state_w_votefocus,
+    columns = ["STATEFP", "vote_share"],
+    key_on = "feature.properties.GEOID",
+    legend = True,
+    legend_name = "Republican vote share",
+    fill_color = "YlOrRd").add_to(m)
+    
+
+m
+```
+
+## Activity 2: add a hoverable popup to the plot
+
+For each state, add a hoverable popup with:
+
+-   The state name
+
+-   The republican vote share (rounded to 2 digits)
+
+```{python}
+state_w_votefocus['rounded_vs'] = state_w_votefocus.vote_share.round(2)
+state_w_votefocus['state_title'] = state_w_votefocus.state.str.title()
+
+m = folium.Map(location=[40, -95], zoom_start=3)
+
+## create the plot
+cp = folium.Choropleth(geo_data = state_w_votefocus,
+    name = "Republican vote share",
+    data = state_w_votefocus,
+    columns = ["STATEFP", "vote_share"],
+    key_on = "feature.properties.GEOID",
+    legend = True,
+    legend_name = "Republican vote share",
+    fill_color = "YlOrRd").add_to(m)
+    
+cp.geojson.add_child(folium.features.GeoJsonTooltip(['state_title', 'rounded_vs'],
+aliases = ["State:", "Republican vote share:"]))
+
+
+
+```
+
+## Activity 3: switch to R and create the same choropleth map using leaflet
+
+-   See here for some example code: https://rstudio.github.io/leaflet/articles/choropleths.html
+-   *Hint*: you'll need to reload the presidential results data and use `tigris` to get the state polygons
+
+```{r}
+library(tidyverse) 
+library(stringr)
+library(leaflet)
+library(leaflet.extras)
+library(tigris)
+library(sf)
+
+```
